@@ -732,6 +732,48 @@ class LedgerTests(TestCase):
         self.assertIn(stale.invoice_no, numbers)
         self.assertNotIn(settled.invoice_no, numbers)
 
+    def test_overdue_list_excludes_invoices_settled_by_account_payment(self):
+        """A lump sum on account, FIFO-allocated, must clear the list too.
+
+        Dashboard regression: the old query summed Payment.amount grouped by
+        Payment.invoice, so a payment left against the account (no invoice
+        named) never counted as settling anything, even once allocate() had
+        actually applied it to this invoice. The invoice then showed a
+        correct 0.00 balance but stayed stuck on the overdue list forever.
+        """
+        old = self.invoice("100.00", days_ago=OVERDUE_DAYS + 2)
+
+        self.pay("100.00")  # no invoice named - settles the oldest by FIFO
+
+        old.refresh_from_db()
+        self.assertEqual(old.balance, Decimal("0.00"))
+
+        numbers = [i.invoice_no for i in overdue_invoices()]
+        self.assertNotIn(old.invoice_no, numbers)
+
+    def test_overdue_list_follows_spillover_not_the_named_invoice(self):
+        """Overpaying one invoice can clear an older one too, via the same payment.
+
+        allocate() settles the named invoice first, then spills anything left
+        over onto the oldest outstanding bills. The old query credited the
+        whole payment only to the invoice it named, so the older bill it
+        quietly cleared kept a settled total of zero and stayed stuck on the
+        overdue list despite a real 0.00 balance.
+        """
+        older = self.invoice("50.00", days_ago=OVERDUE_DAYS + 3)
+        newer = self.invoice("100.00", days_ago=OVERDUE_DAYS + 1)
+
+        self.pay("150.00", invoice=newer)  # settles newer, spills onto older
+
+        older.refresh_from_db()
+        newer.refresh_from_db()
+        self.assertEqual(older.balance, Decimal("0.00"))
+        self.assertEqual(newer.balance, Decimal("0.00"))
+
+        numbers = [i.invoice_no for i in overdue_invoices()]
+        self.assertNotIn(older.invoice_no, numbers)
+        self.assertNotIn(newer.invoice_no, numbers)
+
     def test_statement_shows_a_running_balance(self):
         self.invoice("1000.00", days_ago=5)
         self.pay("300.00")
@@ -7592,6 +7634,23 @@ class DailySalesReportTests(TestCase):
 
         self.assertEqual(rows[0]["name"], "Shifa Pharmacy")
         self.assertEqual(rows[0]["revenue"], Decimal("3000.00"))
+
+    def test_top_customers_page_ranks_everyone_not_just_the_top_ten(self):
+        """The dashboard view, not just the finance helper underneath it.
+
+        limit=None has to mean "everyone" - a silent cap would make a small
+        customer list look complete while quietly hiding the rest.
+        """
+        for i in range(12):
+            self.sell(date(2026, 5, 1), qty=str(i + 1), customer=f"Pharmacy {i}")
+
+        response = self.client.get(reverse("customer_ranking"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["customers"]), 12)
+        self.assertEqual(
+            response.context["customers"][0]["name"], "Pharmacy 11"
+        )
 
     def test_invoices_credited_to_nobody_are_shown_separately(self):
         """A large uncredited line means the rep is being left blank, and

@@ -227,6 +227,11 @@ urlpatterns = [
     path('expenses/new/', views.expense_edit, name='expense_new'),
     path('reports/sales/', views.sales_report, name='sales_report'),
     path('reports/ageing/', views.ageing_report, name='ageing_report'),
+    path(
+        'reports/customers/',
+        views.customer_ranking,
+        name='customer_ranking',
+    ),
     path('accounts/', views.account_list, name='account_list'),
     path('accounts/new/', views.account_edit, name='account_new'),
     path('accounts/book/', views.cash_book, name='cash_book'),

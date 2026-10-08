@@ -1,0 +1,78 @@
+{% extends "invoices/base.html" %}
+{% block title %}LifeMed Pharma - Top Customers{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🏆 Top Customers</h1>
+  <button onclick="window.print()" class="btn btn-grey no-print">Print</button>
+</div>
+
+<div class="card no-print" style="margin-bottom:16px">
+  <form method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+    <div>
+      <label style="display:block;font-size:12px;color:#55657a;margin-bottom:4px">From</label>
+      <input type="date" name="start" value="{{ start }}"
+             style="padding:8px 11px;border:1px solid #dbe2ea;border-radius:7px" />
+    </div>
+    <div>
+      <label style="display:block;font-size:12px;color:#55657a;margin-bottom:4px">To</label>
+      <input type="date" name="end" value="{{ end }}"
+             style="padding:8px 11px;border:1px solid #dbe2ea;border-radius:7px" />
+    </div>
+    <button type="submit" class="btn">Show</button>
+    {% if start or end %}
+    <a href="{% url 'customer_ranking' %}" class="btn btn-grey">All Time</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">
+    Ranked by Revenue
+    <span class="muted" style="font-weight:normal;font-size:13px">
+      — net of returns{% if not start and not end %}, all time{% endif %}
+    </span>
+  </h3>
+
+  <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th class="num">Invoices</th>
+          <th class="num">Revenue</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in customers %}
+        <tr>
+          <td class="muted">{{ forloop.counter }}</td>
+          <td>
+            <strong>{{ row.name }}</strong>
+            {% if row.address %}
+            <br /><span class="muted" style="font-size:11px">{{ row.address|truncatechars:50 }}</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ row.invoices }}</td>
+          <td class="num"><strong>{{ row.revenue|floatformat:2 }}</strong></td>
+          <td style="white-space:nowrap">
+            <a href="{% url 'customer_ledger' row.customer_id %}" class="btn btn-sm">Ledger</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;padding:26px">
+          No sales in this period.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="help-note" style="margin-top:12px">
+    Revenue is invoiced total minus whatever that customer sent back, sorted
+    highest first. A customer who buys a lot but returns a lot too will rank
+    lower here than on the invoice totals alone.
+  </p>
+</div>
+{% endblock %}

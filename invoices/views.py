@@ -66,6 +66,7 @@ from .models import (
     Partner,
     CapitalTransaction,
     Payment,
+    PaymentAllocation,
     PayrollRun,
     Payslip,
     PlanVisit,
@@ -1046,11 +1047,22 @@ def customers_with_balances(queryset=None):
 
 
 def overdue_invoices():
-    """Unpaid past the threshold, net of anything credited back."""
+    """Unpaid past the threshold, net of anything credited back.
+
+    Settled is read from PaymentAllocation, not from Payment.amount grouped
+    by Payment.invoice. A payment names one invoice but is then allocated
+    FIFO across the customer's oldest bills, so a lump sum recorded against
+    this invoice can end up settling an older one instead, or an older
+    invoice's payment can settle this one. Summing by Payment.invoice credits
+    the money to whichever invoice it was recorded against rather than
+    whichever it actually paid off - the same invoice Invoice.balance (used
+    for the Balance column right next to this list) already gets right by
+    reading allocations.
+    """
     cutoff = timezone.localdate() - timedelta(days=OVERDUE_DAYS)
 
     settled = Coalesce(
-        _sum_subquery(Payment, "amount", "invoice"), ZERO, output_field=MONEY
+        _sum_subquery(PaymentAllocation, "amount", "invoice"), ZERO, output_field=MONEY
     ) + Coalesce(
         _sum_subquery(SalesReturn, "total", "invoice"), ZERO, output_field=MONEY
     )
@@ -4500,6 +4512,29 @@ def ageing_report(request):
             "active": "ageing",
             "ageing": ageing,
             "oldest": finance.oldest_debts(),
+        }
+    )
+
+
+@login_required
+def customer_ranking(request):
+    """Every customer, ranked by net revenue - who is actually buying.
+
+    All-time by default, unlike Sales Report's 30-day window: the point of
+    this page is standing overall, not the current rhythm. A date range still
+    narrows it to whichever period is in question.
+    """
+    start = parse_date(request.GET.get("start", ""))
+    end = parse_date(request.GET.get("end", ""))
+
+    return render(
+        request,
+        "invoices/customer_ranking.html",
+        {
+            "active": "customer_ranking",
+            "customers": finance.top_customers(start, end, limit=None),
+            "start": start.isoformat() if start else "",
+            "end": end.isoformat() if end else "",
         }
     )
 
