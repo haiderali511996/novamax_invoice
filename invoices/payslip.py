@@ -1,7 +1,7 @@
 """Draw a payslip PDF.
 
 Unlike invoices, there is no pre-printed form to fill in, so the whole page is
-drawn here: LifeMed Pharma's logo, the employee's details, earnings and
+drawn here: Novamax Pharma's logo, the employee's details, earnings and
 deductions, and the net pay.
 """
 
@@ -16,7 +16,7 @@ from decimal import Decimal
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOGO_PATH = os.path.join(
-    BASE_DIR, "invoices", "static", "invoices", "lifemed-logo.png"
+    BASE_DIR, "invoices", "static", "invoices", "novamax-logo.png"
 )
 
 PAGE_WIDTH = 595.0          # A4 portrait, points
@@ -25,12 +25,12 @@ PAGE_HEIGHT = 842.0
 MARGIN = 45.0
 CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
 
-BRAND = (0.0, 0.396, 0.678)         # #0065ad, sampled from the logo
-DARK = (0.078, 0.188, 0.302)        # #14304d
+BRAND = (0.039, 0.373, 0.639)       # #0a5fa3, sampled from the logo
+DARK = (0.106, 0.165, 0.306)        # #1b2a4e
 MUTED = (0.522, 0.584, 0.659)
 LINE = (0.85, 0.88, 0.92)
 
-COMPANY_NAME = "LifeMed Pharma"
+COMPANY_NAME = "Novamax Pharma"
 
 
 def _text(page, x, y, value, size=9, color=(0, 0, 0), bold=False):

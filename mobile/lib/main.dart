@@ -13,7 +13,7 @@ import 'theme.dart';
 ///   flutter build apk --dart-define=API_BASE=https://staging.example.com/api/v1
 const apiBase = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'https://invoice.lifemedpharmaceutical.com/api/v1',
+  defaultValue: 'https://api.novamaxpharma.com/api/v1',
 );
 
 /// Shown on the login screen so it is obvious which server a build points at -
@@ -34,17 +34,17 @@ Future<void> main() async {
   await state.boot();
 
   runApp(
-    ChangeNotifierProvider.value(value: state, child: const LifeMedApp()),
+    ChangeNotifierProvider.value(value: state, child: const NovamaxApp()),
   );
 }
 
-class LifeMedApp extends StatelessWidget {
-  const LifeMedApp({super.key});
+class NovamaxApp extends StatelessWidget {
+  const NovamaxApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LifeMed Pharma',
+      title: 'Novamax Pharma',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       home: Consumer<AppState>(

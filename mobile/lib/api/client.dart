@@ -77,7 +77,7 @@ class ApiClient {
   ApiClient({required this.baseUrl, http.Client? httpClient})
       : _http = httpClient ?? http.Client();
 
-  /// e.g. https://invoice.lifemedpharmaceutical.com/api/v1
+  /// e.g. https://api.novamaxpharma.com/api/v1
   final String baseUrl;
   http.Client _http;
 

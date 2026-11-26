@@ -1,6 +1,10 @@
 # Deploying to cPanel (Setup Python App)
 
-Target: `http://invoice.lifemedpharmaceutical.com`
+Targets:
+
+- Web app: `https://invoice.novamaxpharma.com`
+- Mobile API: `https://api.novamaxpharma.com/api/v1` (same Django app, same
+  database — see step 3b)
 
 cPanel serves Python apps through Phusion Passenger, not gunicorn. The entry
 point is `passenger_wsgi.py` in the project root.
@@ -9,9 +13,9 @@ point is `passenger_wsgi.py` in the project root.
 
 ## 1. Create the subdomain
 
-cPanel → **Domains** → *Create A Domain* → `invoice.lifemedpharmaceutical.com`.
+cPanel → **Domains** → *Create A Domain* → `invoice.novamaxpharma.com`.
 
-Note the document root it creates (usually `/home/<cpuser>/invoice.lifemedpharmaceutical.com`).
+Note the document root it creates (usually `/home/<cpuser>/invoice.novamaxpharma.com`).
 The application code does **not** go there — Passenger serves it from a separate
 app directory and links `public` into the document root automatically.
 
@@ -32,47 +36,77 @@ cPanel → **Setup Python App** → *Create Application*:
 | Field | Value |
 |---|---|
 | Python version | any 3.9+ (3.11 and 3.13 both tested) |
-| Application root | `lifemed_invoice` |
-| Application URL | `invoice.lifemedpharmaceutical.com` |
+| Application root | `novamax_invoice` |
+| Application URL | `invoice.novamaxpharma.com` |
 | Application startup file | `passenger_wsgi.py` |
 | Application Entry point | `application` |
 
 Click **Create**. cPanel prints a `source /home/<cpuser>/virtualenv/.../activate`
 command at the top of the page — copy it, you need it in step 5.
 
+## 3b. Point `api.novamaxpharma.com` at the same app
+
+The mobile app talks to `https://api.novamaxpharma.com/api/v1`. That is the
+same Django project and the same database as the web app — only the hostname
+differs — so it gets a second subdomain, not a second application.
+
+1. cPanel → **Domains** → *Create A Domain* → `api.novamaxpharma.com`.
+   Note its document root (usually `~/api.novamaxpharma.com`).
+2. Give that document root a Passenger `.htaccess` pointing at the **same**
+   app root and virtualenv as step 3. Take the exact interpreter path from the
+   *Setup Python App* page:
+
+```bash
+cat > ~/api.novamaxpharma.com/.htaccess <<'EOF'
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/<cpuser>/novamax_invoice"
+PassengerBaseURI "/"
+PassengerPython "/home/<cpuser>/virtualenv/novamax_invoice/3.13/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+EOF
+chmod 644 ~/api.novamaxpharma.com/.htaccess
+```
+
+3. Make sure `api.novamaxpharma.com` is in `ALLOWED_HOSTS` (step 5).
+4. Run AutoSSL for this subdomain too (step 8) — Android refuses plain
+   `http://` API calls in release builds.
+
+Check after step 7: `curl -sI https://api.novamaxpharma.com/api/v1/` should
+answer from Django (a JSON 401/403/404), not with a file listing.
+
 ## 4. Upload the code
 
 Creating the app already put a stub `passenger_wsgi.py` and a `tmp/` folder in
-`~/lifemed_invoice`, so `git clone <url> .` fails there with *"destination path
+`~/novamax_invoice`, so `git clone <url> .` fails there with *"destination path
 already exists and is not an empty directory"*. Clone next to it and move the
 files in, overwriting the stub:
 
 ```bash
 cd ~
-git clone https://github.com/haiderali511996/lifemed_invoice.git invoice_src
-cp -rf invoice_src/. lifemed_invoice/
+git clone https://github.com/haiderali511996/novamax_invoice.git invoice_src
+cp -rf invoice_src/. novamax_invoice/
 rm -rf invoice_src
 ```
 
 No Terminal on your plan? Download the repo zip from GitHub, upload it through
-**File Manager**, extract it, and move the contents into `~/lifemed_invoice`,
+**File Manager**, extract it, and move the contents into `~/novamax_invoice`,
 replacing `passenger_wsgi.py` when asked.
 
 Check that `manage.py`, `passenger_wsgi.py` and `template.pdf` all sit directly
-in `~/lifemed_invoice`. The PDF generator reads `template.pdf` from the project
+in `~/novamax_invoice`. The PDF generator reads `template.pdf` from the project
 root and returns a 500 without it.
 
 ## 5. Create the `.env` file
 
-In `~/lifemed_invoice`, copy `.env.example` to `.env` and fill it in. In **File
+In `~/novamax_invoice`, copy `.env.example` to `.env` and fill it in. In **File
 Manager** you must turn on *Settings → Show Hidden Files (dotfiles)* first,
 otherwise `.env` and `.env.example` are invisible.
 
 ```ini
 SECRET_KEY=<paste a generated key>
 DEBUG=False
-ALLOWED_HOSTS=invoice.lifemedpharmaceutical.com
-CSRF_TRUSTED_ORIGINS=http://invoice.lifemedpharmaceutical.com,https://invoice.lifemedpharmaceutical.com
+ALLOWED_HOSTS=invoice.novamaxpharma.com,api.novamaxpharma.com
+CSRF_TRUSTED_ORIGINS=http://invoice.novamaxpharma.com,https://invoice.novamaxpharma.com,http://api.novamaxpharma.com,https://api.novamaxpharma.com
 SECURE_COOKIES=False
 USE_X_FORWARDED_PROTO=False
 DATABASE_URL=mysql://cpuser_invoice:PASSWORD@localhost:3306/cpuser_invoicedb
@@ -96,7 +130,7 @@ If the DB password contains `@ : / # ?`, percent-encode it in the URL
 Activate the virtualenv using the command cPanel gave you in step 3, then:
 
 ```bash
-cd ~/lifemed_invoice
+cd ~/novamax_invoice
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py collectstatic --noinput
@@ -120,13 +154,16 @@ Then sign in at `/admin/` and change that password immediately.
 
 ## 6b. Import data from the old Neon database (optional)
 
+**Skip this for a fresh Novamax database.** `migrate` in step 6 already
+created every table, empty.
+
 Postgres and MySQL dumps are not interchangeable, so the data moves through
 Django's serializer instead of raw SQL.
 
 Export from Neon (the shell-level `DATABASE_URL` overrides `.env`):
 
 ```bash
-cd ~/lifemed_invoice
+cd ~/novamax_invoice
 pip install psycopg2-binary
 DATABASE_URL='postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require' \
   python manage.py dumpdata auth.user invoices \
@@ -163,13 +200,13 @@ cPanel → **Cron Jobs** → add a job. Common Settings: **Once Per Day**
 (or twice daily), and this command — one line, with your own paths:
 
 ```
-/home/<cpuser>/virtualenv/lifemed_invoice/3.13/bin/python /home/<cpuser>/lifemed_invoice/manage.py backup_db --quiet
+/home/<cpuser>/virtualenv/novamax_invoice/3.13/bin/python /home/<cpuser>/novamax_invoice/manage.py backup_db --quiet
 ```
 
 Use the same interpreter path cPanel gave you in step 3, with `/python`
 appended in place of `/activate`.
 
-Dumps land in `~/lifemed_invoice/backups/` as gzipped SQL, named
+Dumps land in `~/novamax_invoice/backups/` as gzipped SQL, named
 `backup-YYYYMMDD-HHMMSS.sql.gz`, owned 0600 in a 0700 directory. Anything
 older than 14 days is pruned automatically.
 
@@ -225,9 +262,10 @@ value relative to its label. Two consequences worth knowing:
 
 ## 8. Enable SSL (recommended)
 
-cPanel → **SSL/TLS Status** → select the subdomain → **Run AutoSSL**.
+cPanel → **SSL/TLS Status** → select **both** subdomains
+(`invoice.novamaxpharma.com` and `api.novamaxpharma.com`) → **Run AutoSSL**.
 
-Once the certificate is issued and `https://invoice.lifemedpharmaceutical.com`
+Once the certificate is issued and `https://invoice.novamaxpharma.com`
 loads, flip both flags in `.env` and restart:
 
 ```ini
@@ -259,8 +297,8 @@ The document root has lost its `.htaccess`. **This is never caused by a code
 change** — a bad deploy gives a 500 or a Passenger error page, never a listing.
 
 LiteSpeed hands a request to Passenger only because of a `.htaccess` cPanel
-writes into the *document root* (`~/invoice.lifemedpharmaceutical.com/`), which
-is a different directory from the *application root* (`~/lifemed_invoice/`).
+writes into the *document root* (`~/invoice.novamaxpharma.com/`), which
+is a different directory from the *application root* (`~/novamax_invoice/`).
 Delete that one file and LiteSpeed falls back to serving the document root as
 plain files. Nothing in the app is touched, which is why *Setup Python App*
 still lists the application as **started**.
@@ -268,7 +306,7 @@ still lists the application as **started**.
 Restarting from that page then fails with:
 
 ```
-No such application (or application not configured) "lifemed_invoice"
+No such application (or application not configured) "novamax_invoice"
 ```
 
 That is the same cause, not a second fault: `cloudlinux-selector` identifies a
@@ -283,7 +321,7 @@ fixing one and stopping.
 **1. Confirm what is missing.** Hidden files need `-a`:
 
 ```bash
-ls -la ~/invoice.lifemedpharmaceutical.com/
+ls -la ~/invoice.novamaxpharma.com/
 ```
 
 A working docroot has `.htaccess` in it. A broken one holds only `cgi-bin`.
@@ -295,21 +333,21 @@ step 1 again — `.htaccess` should now be there.
 
 **3. If Save also errors**, delete the application entry (trash icon) and
 re-create it with exactly the values from step 3 above (Python `3.13`, app root
-`lifemed_invoice`, URL `invoice.lifemedpharmaceutical.com`, startup file
+`novamax_invoice`, URL `invoice.novamaxpharma.com`, startup file
 `passenger_wsgi.py`, entry point `application`).
 
-Deleting the entry leaves `~/lifemed_invoice` — code, `.env`, `media/`,
+Deleting the entry leaves `~/novamax_invoice` — code, `.env`, `media/`,
 `backups/` — alone, but it does destroy the virtualenv, so afterwards:
 
 ```bash
-cd ~/lifemed_invoice
-source /home/haidersirat/virtualenv/lifemed_invoice/3.13/bin/activate
+cd ~/novamax_invoice
+source /home/haidersirat/virtualenv/novamax_invoice/3.13/bin/activate
 pip install -r requirements.txt
 ```
 
 Creating an application also drops a stub `passenger_wsgi.py` into the app root
 on some cPanel versions. Copy ours aside first (`cp
-~/lifemed_invoice/passenger_wsgi.py ~/passenger_wsgi.py.bak`) and check
+~/novamax_invoice/passenger_wsgi.py ~/passenger_wsgi.py.bak`) and check
 afterwards that `grep -c DJANGO_SETTINGS_MODULE passenger_wsgi.py` still prints
 `1`.
 
@@ -317,28 +355,28 @@ afterwards that `grep -c DJANGO_SETTINGS_MODULE passenger_wsgi.py` still prints
 interpreter path from the *Setup Python App* page:
 
 ```bash
-cat > ~/invoice.lifemedpharmaceutical.com/.htaccess <<'EOF'
+cat > ~/invoice.novamaxpharma.com/.htaccess <<'EOF'
 # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
-PassengerAppRoot "/home/haidersirat/lifemed_invoice"
+PassengerAppRoot "/home/haidersirat/novamax_invoice"
 PassengerBaseURI "/"
-PassengerPython "/home/haidersirat/virtualenv/lifemed_invoice/3.13/bin/python"
+PassengerPython "/home/haidersirat/virtualenv/novamax_invoice/3.13/bin/python"
 # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
 EOF
-chmod 644 ~/invoice.lifemedpharmaceutical.com/.htaccess
+chmod 644 ~/invoice.novamaxpharma.com/.htaccess
 ```
 
 **5. Restart and check:**
 
 ```bash
-cd ~/lifemed_invoice
-source /home/haidersirat/virtualenv/lifemed_invoice/3.13/bin/activate
+cd ~/novamax_invoice
+source /home/haidersirat/virtualenv/novamax_invoice/3.13/bin/activate
 python manage.py check
 touch tmp/restart.txt
-curl -sI https://invoice.lifemedpharmaceutical.com/ | head -1
+curl -sI https://invoice.novamaxpharma.com/ | head -1
 ```
 
 `200` or `302` means Passenger is serving again. Still listing files → read
-`~/lifemed_invoice/stderr.log` and the cPanel error log.
+`~/novamax_invoice/stderr.log` and the cPanel error log.
 
 None of this loses data, but take a dump before touching anything:
 
@@ -356,8 +394,8 @@ migration.
 Ask the server directly:
 
 ```bash
-cd ~/lifemed_invoice
-source /home/haidersirat/virtualenv/lifemed_invoice/3.13/bin/activate
+cd ~/novamax_invoice
+source /home/haidersirat/virtualenv/novamax_invoice/3.13/bin/activate
 python manage.py check_schema
 ```
 
@@ -373,14 +411,14 @@ If `check_schema` says the schema is clean, the 500 is a real bug — get the
 traceback with:
 
 ```bash
-tail -n 100 ~/lifemed_invoice/stderr.log
+tail -n 100 ~/novamax_invoice/stderr.log
 ```
 
 ### Everything else
 
 | Symptom | Cause |
 |---|---|
-| 500 on every page, no Django output | Passenger failed to boot — read `~/lifemed_invoice/stderr.log` and the cPanel error log |
+| 500 on every page, no Django output | Passenger failed to boot — read `~/novamax_invoice/stderr.log` and the cPanel error log |
 | Page loads, 500 on save | Run `python manage.py check_schema` — see above |
 | Every page 500s right after a deploy | A package in `requirements.txt` did not install. Re-run `pip install -r requirements.txt` and read its output — a version conflict leaves the old code running against a settings file that imports something absent |
 | `ImproperlyConfigured: SECRET_KEY is not set` | `.env` missing, in the wrong directory, or unreadable |

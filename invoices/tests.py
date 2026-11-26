@@ -3357,7 +3357,7 @@ class PayrollTests(TestCase):
         self.assertIn("MR-01", text)
         self.assertIn("NET PAY", text)
         self.assertIn("77,000.00", text)
-        # The LifeMed logo is embedded, not just named
+        # The Novamax logo is embedded, not just named
         self.assertEqual(len(document[0].get_images()), 1)
 
     def test_payroll_pages_render(self):

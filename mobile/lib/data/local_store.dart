@@ -15,7 +15,7 @@ class LocalStore {
   Future<Database> get db async => _db ??= await _open();
 
   Future<Database> _open() async {
-    final path = p.join(await getDatabasesPath(), 'lifemed_mr.db');
+    final path = p.join(await getDatabasesPath(), 'novamax_mr.db');
 
     return openDatabase(
       path,

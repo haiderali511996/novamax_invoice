@@ -20,7 +20,7 @@ cd "$(dirname "$0")/.."
 MANIFEST="android/app/src/main/AndroidManifest.xml"
 
 if [ ! -f "$MANIFEST" ]; then
-  echo "No $MANIFEST — run 'flutter create --org com.lifemedpharmaceutical .' first." >&2
+  echo "No $MANIFEST — run 'flutter create --org com.novamaxpharma .' first." >&2
   exit 1
 fi
 
