@@ -222,3 +222,22 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
 }
+
+
+# Send unhandled errors to stderr. With DEBUG off, Django's default only
+# emails them to ADMINS - and none are set - so a 500 on the live site left no
+# trace at all. Passenger writes stderr to stderr.log in the app root.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
