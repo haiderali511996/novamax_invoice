@@ -1,4 +1,4 @@
-# LifeMed Pharma — MR App
+# Novamax Pharma — MR App
 
 The field app: an MR's day, their doctors, their targets and their calls.
 
@@ -15,10 +15,10 @@ idempotent writes and every endpoint.
 You need Flutter 3.19 or newer. From this directory:
 
 ```bash
-flutter create --org com.lifemedpharmaceutical --platforms=android,ios .
+flutter create --org com.novamaxpharma --platforms=android,ios .
 ./tool/setup_android.sh                    # INTERNET permission — see below
 flutter pub get
-dart run flutter_launcher_icons            # app icon from the LifeMed mark
+dart run flutter_launcher_icons            # app icon from the Novamax mark
 dart run flutter_native_splash:create      # splash from the full logo
 flutter run
 ```
@@ -36,11 +36,11 @@ safe.
 **Do not leave off `--org`.** Without it the bundle identifier is
 `com.example.…`, and no Apple account can be issued a provisioning profile for
 a domain it does not own — iOS builds then fail at signing with "No profiles
-for 'com.example.lifemedMr' were found". If it has already happened, fix it in
+for 'com.example.novamaxMr' were found". If it has already happened, fix it in
 place rather than regenerating:
 
 ```bash
-sed -i '' 's/com\.example\.lifemedMr/com.lifemedpharmaceutical.mr/g' \
+sed -i '' 's/com\.example\.novamaxMr/com.novamaxpharma.mr/g' \
   ios/Runner.xcodeproj/project.pbxproj
 ```
 

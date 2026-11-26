@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// Colours sampled from the LifeMed Pharma logo, so the app and the invoices
+/// Colours sampled from the Novamax Pharma logo, so the app and the invoices
 /// look like they came from the same company.
-const brandBlue = Color(0xFF0065AD);
+const brandBlue = Color(0xFF0A5FA3);
+// Green is kept for "done / approved" states, not as a brand colour.
 const brandGreen = Color(0xFF3AAA35);
-const brandDark = Color(0xFF14304D);
+const brandDark = Color(0xFF1B2A4E);
 const muted = Color(0xFF8595A8);
 
 ThemeData buildTheme() {

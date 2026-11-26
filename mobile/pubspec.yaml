@@ -1,5 +1,5 @@
-name: lifemed_mr
-description: LifeMed Pharma field app - an MR's day, doctors, targets and calls.
+name: novamax_mr
+description: Novamax Pharma field app - an MR's day, doctors, targets and calls.
 publish_to: "none"
 version: 1.0.0+1
 

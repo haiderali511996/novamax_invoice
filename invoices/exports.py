@@ -194,7 +194,7 @@ def to_xlsx(invoices):
     sheet.title = "Invoices"
 
     header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill("solid", fgColor="14304D")
+    header_fill = PatternFill("solid", fgColor="1B2A4E")
 
     sheet.append([label for _, label, _ in COLUMNS])
 
